@@ -142,6 +142,8 @@ function sanitizeBusinessInfo(info: unknown): BusinessInfo {
     phone: typeof i.phone === "string" ? i.phone : defaults.phone,
     address: typeof i.address === "string" ? i.address : defaults.address,
     taxId: typeof i.taxId === "string" ? i.taxId : defaults.taxId,
+    defaultPaymentTerms: typeof i.defaultPaymentTerms === "string" ? i.defaultPaymentTerms : defaults.defaultPaymentTerms,
+    defaultNotes: typeof i.defaultNotes === "string" ? i.defaultNotes : defaults.defaultNotes,
   };
 }
 
@@ -300,10 +302,15 @@ export function createDefaultBusinessInfo(): BusinessInfo {
     phone: "",
     address: "",
     taxId: "",
+    defaultPaymentTerms: "Payment due within 30 days of invoice date.",
+    defaultNotes: "",
   };
 }
 
 export function createEmptyInvoice(businessInfo?: BusinessInfo): Invoice {
+  const defaultPaymentTerms = businessInfo?.defaultPaymentTerms || "Payment due within 30 days of invoice date.";
+  const defaultNotes = businessInfo?.defaultNotes || "";
+  
   return {
     id: generateId(),
     invoiceNumber: generateInvoiceNumber(),
@@ -313,8 +320,8 @@ export function createEmptyInvoice(businessInfo?: BusinessInfo): Invoice {
     businessInfo: businessInfo ? deepClone(businessInfo) : createDefaultBusinessInfo(),
     client: createEmptyClient(),
     lineItems: [createEmptyLineItem()],
-    notes: "",
-    paymentTerms: "Payment due within 30 days of invoice date.",
+    notes: defaultNotes,
+    paymentTerms: defaultPaymentTerms,
     referenceNumber: "",
     discountAmount: 0,
   };

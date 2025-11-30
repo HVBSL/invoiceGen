@@ -5,6 +5,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { BusinessInfo } from "@shared/schema";
 import { useRef } from "react";
+import { getEmailError, getPhoneError } from "@/lib/validation-utils";
+import { cn } from "@/lib/utils";
 
 interface BusinessInfoFormProps {
   businessInfo: BusinessInfo;
@@ -18,6 +20,8 @@ export function BusinessInfoForm({
   compact = false,
 }: BusinessInfoFormProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const emailError = getEmailError(businessInfo.email || "");
+  const phoneError = getPhoneError(businessInfo.phone || "");
 
   const updateField = (field: keyof BusinessInfo, value: string) => {
     onChange({ ...businessInfo, [field]: value });
@@ -89,14 +93,24 @@ export function BusinessInfoForm({
               className="border-0 bg-transparent px-0 text-lg font-semibold shadow-none focus-visible:ring-0"
               data-testid="input-business-name-compact"
             />
-            <Input
-              value={businessInfo.email || ""}
-              onChange={(e) => updateField("email", e.target.value)}
-              placeholder="email@business.com"
-              type="email"
-              className="border-0 bg-transparent px-0 text-sm shadow-none focus-visible:ring-0"
-              data-testid="input-business-email-compact"
-            />
+            <div>
+              <Input
+                value={businessInfo.email || ""}
+                onChange={(e) => updateField("email", e.target.value)}
+                placeholder="email@business.com"
+                type="email"
+                className={cn(
+                  "border-0 bg-transparent px-0 text-sm shadow-none focus-visible:ring-0",
+                  emailError && "text-destructive"
+                )}
+                data-testid="input-business-email-compact"
+              />
+              {emailError && (
+                <p className="text-xs text-destructive" data-testid="error-business-email-compact">
+                  {emailError}
+                </p>
+              )}
+            </div>
           </div>
         </div>
         <Textarea
@@ -107,12 +121,20 @@ export function BusinessInfoForm({
           data-testid="input-business-address-compact"
         />
         <div className="grid grid-cols-2 gap-4">
-          <Input
-            value={businessInfo.phone || ""}
-            onChange={(e) => updateField("phone", e.target.value)}
-            placeholder="Phone"
-            data-testid="input-business-phone-compact"
-          />
+          <div>
+            <Input
+              value={businessInfo.phone || ""}
+              onChange={(e) => updateField("phone", e.target.value)}
+              placeholder="Phone"
+              className={cn(phoneError && "border-destructive")}
+              data-testid="input-business-phone-compact"
+            />
+            {phoneError && (
+              <p className="mt-1 text-xs text-destructive" data-testid="error-business-phone-compact">
+                {phoneError}
+              </p>
+            )}
+          </div>
           <Input
             value={businessInfo.taxId || ""}
             onChange={(e) => updateField("taxId", e.target.value)}
@@ -192,8 +214,14 @@ export function BusinessInfoForm({
             value={businessInfo.email || ""}
             onChange={(e) => updateField("email", e.target.value)}
             placeholder="email@business.com"
+            className={cn(emailError && "border-destructive")}
             data-testid="input-business-email"
           />
+          {emailError && (
+            <p className="mt-1 text-xs text-destructive" data-testid="error-business-email">
+              {emailError}
+            </p>
+          )}
         </div>
 
         <div>
@@ -205,8 +233,14 @@ export function BusinessInfoForm({
             value={businessInfo.phone || ""}
             onChange={(e) => updateField("phone", e.target.value)}
             placeholder="+1 (555) 000-0000"
+            className={cn(phoneError && "border-destructive")}
             data-testid="input-business-phone"
           />
+          {phoneError && (
+            <p className="mt-1 text-xs text-destructive" data-testid="error-business-phone">
+              {phoneError}
+            </p>
+          )}
         </div>
 
         <div className="sm:col-span-2">

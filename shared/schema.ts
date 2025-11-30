@@ -23,6 +23,8 @@ export const businessInfoSchema = z.object({
   phone: z.string().optional(),
   address: z.string().optional(),
   taxId: z.string().optional(),
+  defaultPaymentTerms: z.string().optional(),
+  defaultNotes: z.string().optional(),
 });
 
 export const invoiceStatusSchema = z.enum(["draft", "sent", "paid", "overdue"]);

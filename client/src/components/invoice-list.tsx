@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import {
   Search,
   Filter,
@@ -9,6 +9,7 @@ import {
   MoreHorizontal,
   FileText,
   Plus,
+  Printer,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,6 +39,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { StatusBadge } from "./status-badge";
+import { InvoicePreview } from "./invoice-preview";
 import type { Invoice, InvoiceStatus } from "@shared/schema";
 import {
   formatCurrency,
@@ -48,6 +50,7 @@ import {
   sortInvoices,
 } from "@/lib/invoice-utils";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 
 interface InvoiceListProps {
   invoices: Invoice[];
@@ -71,6 +74,9 @@ export function InvoiceList({
   const [sortBy, setSortBy] = useState<"date" | "number" | "amount">("date");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [invoiceToDelete, setInvoiceToDelete] = useState<string | null>(null);
+  const [invoiceToPrint, setInvoiceToPrint] = useState<Invoice | null>(null);
+  const printRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
 
   const filteredInvoices = useMemo(() => {
     let result = searchInvoices(invoices, searchQuery);
@@ -95,6 +101,105 @@ export function InvoiceList({
   const handleDuplicate = (id: string) => {
     const newInvoice = onDuplicate(id);
     onEdit(newInvoice);
+  };
+
+  const handlePrint = (invoice: Invoice) => {
+    setInvoiceToPrint(invoice);
+    setTimeout(() => {
+      if (!printRef.current) {
+        toast({
+          title: "Print Error",
+          description: "Could not prepare invoice for printing.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const printWindow = window.open("", "_blank");
+      if (!printWindow) {
+        toast({
+          title: "Print Error",
+          description: "Could not open print window. Please allow popups.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const previewContent = printRef.current.innerHTML;
+      
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Invoice ${invoice.invoiceNumber}</title>
+            <style>
+              * { margin: 0; padding: 0; box-sizing: border-box; }
+              body { font-family: system-ui, -apple-system, sans-serif; color: #111827; }
+              table { width: 100%; border-collapse: collapse; }
+              th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e5e7eb; }
+              th { background-color: #f9fafb; font-weight: 500; font-size: 14px; color: #6b7280; }
+              td { font-size: 14px; }
+              .text-right { text-align: right; }
+              .text-sm { font-size: 14px; }
+              .text-xs { font-size: 12px; }
+              .font-bold { font-weight: 700; }
+              .font-semibold { font-weight: 600; }
+              .font-medium { font-weight: 500; }
+              .text-gray-500 { color: #6b7280; }
+              .text-gray-600 { color: #4b5563; }
+              .text-gray-700 { color: #374151; }
+              .text-gray-900 { color: #111827; }
+              .mb-1 { margin-bottom: 4px; }
+              .mb-2 { margin-bottom: 8px; }
+              .mb-8 { margin-bottom: 32px; }
+              .mt-1 { margin-top: 4px; }
+              .mt-2 { margin-top: 8px; }
+              .ml-2 { margin-left: 8px; }
+              .p-8 { padding: 32px; }
+              .pt-6 { padding-top: 24px; }
+              .gap-4 { gap: 16px; }
+              .gap-6 { gap: 24px; }
+              .gap-8 { gap: 32px; }
+              .space-y-2 > * + * { margin-top: 8px; }
+              .space-y-4 > * + * { margin-top: 16px; }
+              .flex { display: flex; }
+              .flex-col { flex-direction: column; }
+              .items-start { align-items: flex-start; }
+              .justify-between { justify-content: space-between; }
+              .justify-end { justify-content: flex-end; }
+              .grid { display: grid; }
+              .grid-cols-2 { grid-template-columns: repeat(2, 1fr); }
+              .border { border: 1px solid #e5e7eb; }
+              .border-t { border-top: 1px solid #e5e7eb; }
+              .rounded-lg { border-radius: 8px; }
+              .overflow-hidden { overflow: hidden; }
+              .whitespace-pre-line { white-space: pre-line; }
+              .uppercase { text-transform: uppercase; }
+              .tracking-wide { letter-spacing: 0.025em; }
+              .w-full { width: 100%; }
+              .max-w-xs { max-width: 320px; }
+              .ml-auto { margin-left: auto; }
+              img { max-height: 64px; max-width: 64px; object-fit: contain; }
+              @media print {
+                body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+                @page { margin: 1cm; size: A4; }
+              }
+            </style>
+          </head>
+          <body>
+            ${previewContent}
+          </body>
+        </html>
+      `);
+      
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => {
+        printWindow.print();
+        printWindow.close();
+        setInvoiceToPrint(null);
+      }, 250);
+    }, 100);
   };
 
   if (invoices.length === 0) {
@@ -250,6 +355,10 @@ export function InvoiceList({
                             <Eye className="mr-2 h-4 w-4" />
                             Preview
                           </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handlePrint(invoice)}>
+                            <Printer className="mr-2 h-4 w-4" />
+                            Print
+                          </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleDuplicate(invoice.id)}>
                             <Copy className="mr-2 h-4 w-4" />
                             Duplicate
@@ -314,6 +423,10 @@ export function InvoiceList({
                         <Eye className="mr-2 h-4 w-4" />
                         Preview
                       </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handlePrint(invoice)}>
+                        <Printer className="mr-2 h-4 w-4" />
+                        Print
+                      </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => handleDuplicate(invoice.id)}>
                         <Copy className="mr-2 h-4 w-4" />
                         Duplicate
@@ -355,6 +468,12 @@ export function InvoiceList({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {invoiceToPrint && (
+        <div className="hidden">
+          <InvoicePreview ref={printRef} invoice={invoiceToPrint} />
+        </div>
+      )}
     </div>
   );
 }

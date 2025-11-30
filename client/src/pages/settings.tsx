@@ -1,6 +1,8 @@
 import { Header } from "@/components/header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { BusinessInfoForm } from "@/components/business-info-form";
 import { useInvoice } from "@/lib/invoice-context";
 import { useToast } from "@/hooks/use-toast";
@@ -34,6 +36,10 @@ export default function Settings() {
     window.location.reload();
   };
 
+  const updateField = (field: keyof typeof businessInfo, value: string) => {
+    updateBusinessInfo({ ...businessInfo, [field]: value });
+  };
+
   const totalInvoices = invoices.length;
   const paidInvoices = invoices.filter((inv) => inv.status === "paid").length;
   const pendingInvoices = invoices.filter((inv) => inv.status === "sent").length;
@@ -52,7 +58,7 @@ export default function Settings() {
         </div>
 
         <div className="grid gap-6 lg:grid-cols-3">
-          <div className="lg:col-span-2">
+          <div className="space-y-6 lg:col-span-2">
             <Card>
               <CardHeader>
                 <CardTitle>Business Information</CardTitle>
@@ -65,14 +71,52 @@ export default function Settings() {
                   businessInfo={businessInfo}
                   onChange={updateBusinessInfo}
                 />
-                <div className="mt-6 flex justify-end">
-                  <Button onClick={handleSave} className="gap-1.5" data-testid="button-save-settings">
-                    <Save className="h-4 w-4" />
-                    Save Changes
-                  </Button>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Default Invoice Settings</CardTitle>
+                <CardDescription>
+                  These values will be used as defaults when creating new invoices.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label htmlFor="defaultPaymentTerms" className="mb-2 block">
+                    Default Payment Terms
+                  </Label>
+                  <Textarea
+                    id="defaultPaymentTerms"
+                    value={businessInfo.defaultPaymentTerms || ""}
+                    onChange={(e) => updateField("defaultPaymentTerms", e.target.value)}
+                    placeholder="Payment due within 30 days of invoice date."
+                    className="min-h-[80px] resize-none"
+                    data-testid="input-default-payment-terms"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="defaultNotes" className="mb-2 block">
+                    Default Notes
+                  </Label>
+                  <Textarea
+                    id="defaultNotes"
+                    value={businessInfo.defaultNotes || ""}
+                    onChange={(e) => updateField("defaultNotes", e.target.value)}
+                    placeholder="Thank you for your business!"
+                    className="min-h-[80px] resize-none"
+                    data-testid="input-default-notes"
+                  />
                 </div>
               </CardContent>
             </Card>
+
+            <div className="flex justify-end">
+              <Button onClick={handleSave} className="gap-1.5" data-testid="button-save-settings">
+                <Save className="h-4 w-4" />
+                Save All Settings
+              </Button>
+            </div>
           </div>
 
           <div className="space-y-6">

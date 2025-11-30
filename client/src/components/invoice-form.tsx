@@ -1,9 +1,8 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Save, Printer, Download, Eye, EyeOff, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
@@ -18,7 +17,6 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import type { Invoice, InvoiceStatus } from "@shared/schema";
-import { BusinessInfoForm } from "./business-info-form";
 import { ClientInfoForm } from "./client-info-form";
 import { LineItemsTable } from "./line-items-table";
 import { InvoiceSummary } from "./invoice-summary";
@@ -27,6 +25,8 @@ import { StatusBadge } from "./status-badge";
 import { useInvoice } from "@/lib/invoice-context";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { isValidEmail, isValidPhone } from "@/lib/validation-utils";
+import { createEmptyClient } from "@/lib/invoice-utils";
 
 interface InvoiceFormProps {
   invoice: Invoice;
@@ -37,18 +37,32 @@ interface InvoiceFormProps {
 export function InvoiceForm({ invoice: initialInvoice, onSave, onClose }: InvoiceFormProps) {
   const [invoice, setInvoice] = useState<Invoice>(initialInvoice);
   const [showPreview, setShowPreview] = useState(false);
-  const [businessOpen, setBusinessOpen] = useState(true);
   const [clientOpen, setClientOpen] = useState(true);
   const previewRef = useRef<HTMLDivElement>(null);
-  const { businessInfo, updateBusinessInfo } = useInvoice();
+  const { businessInfo, clients } = useInvoice();
   const { toast } = useToast();
 
   useEffect(() => {
-    setInvoice(initialInvoice);
-  }, [initialInvoice]);
+    const updatedInvoice = {
+      ...initialInvoice,
+      businessInfo: businessInfo,
+    };
+    setInvoice(updatedInvoice);
+  }, [initialInvoice, businessInfo]);
+
+  const isExistingClient = useMemo(() => {
+    if (!invoice.client.name) return false;
+    return clients.some(
+      (c) => c.id === invoice.client.id || c.name.toLowerCase() === invoice.client.name.toLowerCase()
+    );
+  }, [invoice.client, clients]);
 
   const updateField = <K extends keyof Invoice>(field: K, value: Invoice[K]) => {
     setInvoice((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleClearClient = () => {
+    updateField("client", createEmptyClient());
   };
 
   const handleSave = () => {
@@ -56,6 +70,24 @@ export function InvoiceForm({ invoice: initialInvoice, onSave, onClose }: Invoic
       toast({
         title: "Validation Error",
         description: "Please enter a client name.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (invoice.client.email && !isValidEmail(invoice.client.email)) {
+      toast({
+        title: "Validation Error",
+        description: "Please enter a valid client email address.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (invoice.client.phone && !isValidPhone(invoice.client.phone)) {
+      toast({
+        title: "Validation Error",
+        description: "Please enter a valid client phone number.",
         variant: "destructive",
       });
       return;
@@ -71,7 +103,6 @@ export function InvoiceForm({ invoice: initialInvoice, onSave, onClose }: Invoic
     }
 
     onSave(invoice);
-    updateBusinessInfo(invoice.businessInfo);
     toast({
       title: "Invoice Saved",
       description: `Invoice ${invoice.invoiceNumber} has been saved.`,
@@ -179,11 +210,11 @@ export function InvoiceForm({ invoice: initialInvoice, onSave, onClose }: Invoic
       }
 
       const opt = {
-        margin: [10, 10, 10, 10],
+        margin: [10, 10, 10, 10] as [number, number, number, number],
         filename: `${invoice.invoiceNumber}.pdf`,
-        image: { type: "jpeg", quality: 0.98 },
+        image: { type: "jpeg" as const, quality: 0.98 },
         html2canvas: { scale: 2, useCORS: true },
-        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" as const },
       };
 
       html2pdf().set(opt).from(element).save();
@@ -335,33 +366,6 @@ export function InvoiceForm({ invoice: initialInvoice, onSave, onClose }: Invoic
             </CardHeader>
           </Card>
 
-          <Collapsible open={businessOpen} onOpenChange={setBusinessOpen}>
-            <Card>
-              <CollapsibleTrigger asChild>
-                <CardHeader className="cursor-pointer hover-elevate">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg">Your Business</CardTitle>
-                    <ChevronDown
-                      className={cn(
-                        "h-5 w-5 text-muted-foreground transition-transform",
-                        businessOpen && "rotate-180"
-                      )}
-                    />
-                  </div>
-                </CardHeader>
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <CardContent>
-                  <BusinessInfoForm
-                    businessInfo={invoice.businessInfo}
-                    onChange={(info) => updateField("businessInfo", info)}
-                    compact
-                  />
-                </CardContent>
-              </CollapsibleContent>
-            </Card>
-          </Collapsible>
-
           <Collapsible open={clientOpen} onOpenChange={setClientOpen}>
             <Card>
               <CollapsibleTrigger asChild>
@@ -383,6 +387,8 @@ export function InvoiceForm({ invoice: initialInvoice, onSave, onClose }: Invoic
                     client={invoice.client}
                     onChange={(client) => updateField("client", client)}
                     compact
+                    isExistingClient={isExistingClient}
+                    onClearClient={handleClearClient}
                   />
                 </CardContent>
               </CollapsibleContent>
@@ -408,40 +414,6 @@ export function InvoiceForm({ invoice: initialInvoice, onSave, onClose }: Invoic
                 discountAmount={invoice.discountAmount}
                 onDiscountChange={(amount) => updateField("discountAmount", amount)}
               />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Additional Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="paymentTerms" className="mb-2 block">
-                  Payment Terms
-                </Label>
-                <Textarea
-                  id="paymentTerms"
-                  value={invoice.paymentTerms || ""}
-                  onChange={(e) => updateField("paymentTerms", e.target.value)}
-                  placeholder="Payment due within 30 days..."
-                  className="min-h-[60px] resize-none"
-                  data-testid="input-payment-terms"
-                />
-              </div>
-              <div>
-                <Label htmlFor="notes" className="mb-2 block">
-                  Notes
-                </Label>
-                <Textarea
-                  id="notes"
-                  value={invoice.notes || ""}
-                  onChange={(e) => updateField("notes", e.target.value)}
-                  placeholder="Thank you for your business..."
-                  className="min-h-[80px] resize-none"
-                  data-testid="input-notes"
-                />
-              </div>
             </CardContent>
           </Card>
 
