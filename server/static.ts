@@ -1,24 +1,30 @@
 import express, { type Express } from "express";
 import fs from "fs";
 import path from "path";
-import { fileURLToPath } from "url";
 
 // Get the correct directory path for both CommonJS and ESM
-const getDirname = () => {
+// In CJS builds (production), __dirname is available
+// In ESM (development), we'll use process.cwd() as fallback
+const getProjectRoot = () => {
+  // In CommonJS builds, __dirname will be available
   if (typeof __dirname !== "undefined") {
-    return __dirname;
+    // When bundled, __dirname points to the bundled file location
+    // We need to go up to find the project root
+    // The bundled file is at dist/index.cjs, so we go up to dist, then up to project root
+    return path.resolve(__dirname, "..");
   }
-  const __filename = fileURLToPath(import.meta.url);
-  return path.dirname(__filename);
+  // In ESM/development, use process.cwd()
+  return process.cwd();
 };
 
 export function serveStatic(app: Express) {
   // In Vercel, the dist/public folder is relative to the project root
   // In local builds, it's relative to the server directory
   // Try multiple possible locations
+  const projectRoot = getProjectRoot();
   const possibleRoots = [
     process.cwd(), // Vercel serverless function root
-    path.resolve(getDirname(), ".."), // Local build (from server directory)
+    projectRoot, // Project root (from server directory or bundled location)
     path.resolve(process.cwd(), ".."), // Alternative Vercel location
   ];
   
