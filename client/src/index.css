@@ -202,6 +202,22 @@
     @apply hidden;
   }
 
+  /* Print styles for invoice preview */
+  @media print {
+    body {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    
+    .print\\:hidden {
+      display: none !important;
+    }
+    
+    .print\\:block {
+      display: block !important;
+    }
+  }
+
   /* Placeholder styling for contentEditable div */
   [contenteditable][data-placeholder]:empty::before {
     content: attr(data-placeholder);
